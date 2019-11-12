@@ -1,15 +1,29 @@
 package eu.eitdigital.datascience
 
-/**
- * @author ${user.name}
- */
+import org.apache.log4j.{Level, Logger}
+import org.apache.spark.sql.SparkSession
+
 object App {
   
-  def foo(x : Array[String]) = x.foldLeft("")((a,b) => a + b)
-  
   def main(args : Array[String]) {
-    println( "Hello World!" )
-    println("concat arguments = " + foo(args))
+    Logger.getLogger("org").setLevel(Level.WARN)
+
+    val spark = SparkSession
+      .builder()
+      .appName("Big Data SparkSQL Session")
+      .getOrCreate()
+
+    import spark.implicits._
+
+    val dataFrame = spark.read.format("csv")
+      .option("sep", ",")
+      .option("inferSchema", "true")
+      .option("header", "true")
+      .load("file:///home/carlos/Documents/Big Data/BigDataProject/src/main/resources/2008.csv")
+      .drop("ArrTime", "ActualElapsedTime", "AirTime", "TaxiIn", "Diverted", "CarrierDelay", "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay")
+
+    println(s"Lines in the document: ${dataFrame.count()}")
+
   }
 
 }
