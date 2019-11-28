@@ -2,6 +2,7 @@ package eu.eitdigital.datascience
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types._
 
 object App {
   
@@ -15,12 +16,19 @@ object App {
 
     import spark.implicits._
 
-    val dataFrame = spark.read.format("csv")
+    val _dataFrame = spark.read.format("csv")
       .option("sep", ",")
       .option("inferSchema", "true")
       .option("header", "true")
-      .load("file:///home/carlos/Documents/Big Data/BigDataProject/src/main/resources/2008.csv")
-      .drop("ArrTime", "ActualElapsedTime", "AirTime", "TaxiIn", "Diverted", "CarrierDelay", "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay")
+      .load("src/main/resources/2008.csv")
+      .drop("ArrTime", "ActualElapsedTime", "AirTime", "TaxiIn", "Diverted", "CarrierDelay",
+        "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay")
+
+     val dataFrame = _dataFrame.withColumn("DepTime", _dataFrame.col("DepTime").cast(DataTypes.IntegerType))
+        .withColumn("CRSElapsedTime", _dataFrame.col("CRSElapsedTime").cast(DataTypes.IntegerType))
+        .withColumn("ArrDelay", _dataFrame.col("ArrDelay").cast(DataTypes.IntegerType))
+        .withColumn("DepDelay", _dataFrame.col("DepDelay").cast(DataTypes.IntegerType))
+        .withColumn("TaxiOut", _dataFrame.col("TaxiOut").cast(DataTypes.IntegerType))
 
     println(s"Lines in the document: ${dataFrame.count()}")
 
