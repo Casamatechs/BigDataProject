@@ -20,7 +20,7 @@ object App {
       .option("sep", ",")
       .option("inferSchema", "true")
       .option("header", "true")
-      .load("src/main/resources/2008.csv")
+      .load(args(0))
       .drop("ArrTime", "ActualElapsedTime", "AirTime", "TaxiIn", "Diverted", "CarrierDelay",
         "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay")
 
