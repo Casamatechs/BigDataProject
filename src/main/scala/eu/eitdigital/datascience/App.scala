@@ -3,6 +3,7 @@ package eu.eitdigital.datascience
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
 
 object App {
   
@@ -29,6 +30,9 @@ object App {
         .withColumn("ArrDelay", _dataFrame.col("ArrDelay").cast(DataTypes.IntegerType))
         .withColumn("DepDelay", _dataFrame.col("DepDelay").cast(DataTypes.IntegerType))
         .withColumn("TaxiOut", _dataFrame.col("TaxiOut").cast(DataTypes.IntegerType))
+        .withColumn("FlightID", concat($"UniqueCarrier", lit(""), $"FlightNum"))
+
+
 
     println(s"Lines in the document: ${dataFrame.count()}")
 
