@@ -1,13 +1,15 @@
 package eu.eitdigital.datascience
 
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.ml.feature.{MinMaxScaler, StringIndexer}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.types._
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
 
 object App {
-  
-  def main(args : Array[String]) {
+
+  def main(args: Array[String]) {
+
     Logger.getLogger("org").setLevel(Level.WARN)
 
     val spark = SparkSession
@@ -17,21 +19,32 @@ object App {
 
     import spark.implicits._
 
-    val _dataFrame = spark.read.format("csv")
+    val dataFrame = spark.read.format("csv")
       .option("sep", ",")
       .option("inferSchema", "true")
       .option("header", "true")
-      .load(args(0))
+      .load("/home/carlos/Documents/Big Data/BigDataProject/src/main/resources/2008.csv")
       .drop("ArrTime", "ActualElapsedTime", "AirTime", "TaxiIn", "Diverted", "CarrierDelay",
         "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay")
+      .withColumn("DepTime", $"DepTime".cast(DataTypes.IntegerType))
+      .withColumn("CRSElapsedTime", $"CRSElapsedTime".cast(DataTypes.IntegerType))
+      .withColumn("ArrDelay", $"ArrDelay".cast(DataTypes.IntegerType))
+      .withColumn("DepDelay", $"DepDelay".cast(DataTypes.IntegerType))
+      .withColumn("TaxiOut", $"TaxiOut".cast(DataTypes.IntegerType))
+      .withColumn("FlightID", concat($"UniqueCarrier", lit(""), $"FlightNum"))
+      .filter($"ArrDelay".isNotNull)
 
-     val dataFrame = _dataFrame.withColumn("DepTime", _dataFrame.col("DepTime").cast(DataTypes.IntegerType))
-        .withColumn("CRSElapsedTime", _dataFrame.col("CRSElapsedTime").cast(DataTypes.IntegerType))
-        .withColumn("ArrDelay", _dataFrame.col("ArrDelay").cast(DataTypes.IntegerType))
-        .withColumn("DepDelay", _dataFrame.col("DepDelay").cast(DataTypes.IntegerType))
-        .withColumn("TaxiOut", _dataFrame.col("TaxiOut").cast(DataTypes.IntegerType))
-        .withColumn("FlightID", concat($"UniqueCarrier", lit(""), $"FlightNum"))
+    val indexer = new StringIndexer()
+      .setInputCol("FlightID")
+      .setOutputCol("indexFlightID")
+        .fit(dataFrame)
+        .transform(dataFrame)
 
+    val scaler = new MinMaxScaler()
+        .setInputCol("indexFlightID")
+        .setOutputCol("scaledFlightID")
+        .fit(indexer)
+        .transform(indexer)
 
 
     println(s"Lines in the document: ${dataFrame.count()}")
