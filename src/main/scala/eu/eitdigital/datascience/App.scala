@@ -1,7 +1,8 @@
 package eu.eitdigital.datascience
 
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.ml.feature.{MinMaxScaler, StringIndexer}
+import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
+import org.apache.spark.ml.regression.LinearRegression
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
@@ -23,7 +24,7 @@ object App {
       .option("sep", ",")
       .option("inferSchema", "true")
       .option("header", "true")
-      .load("/home/carlos/Documents/Big Data/BigDataProject/src/main/resources/2008.csv")
+      .load("/Users/csanchez/Documents/EIT 2019/Big Data/BigDataProject/src/main/resources/2008.csv")
       .drop("ArrTime", "ActualElapsedTime", "AirTime", "TaxiIn", "Diverted", "CarrierDelay",
         "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay")
       .withColumn("DepTime", $"DepTime".cast(DataTypes.IntegerType))
@@ -40,11 +41,31 @@ object App {
         .fit(dataFrame)
         .transform(dataFrame)
 
-    val scaler = new MinMaxScaler()
-        .setInputCol("indexFlightID")
-        .setOutputCol("scaledFlightID")
-        .fit(indexer)
-        .transform(indexer)
+    val assembler = new VectorAssembler()
+        .setInputCols(Array("DepDelay", "DayOfWeek", "indexFlightID"))
+        .setOutputCol("features")
+
+    val prepared_df = assembler.transform(indexer)
+
+    val linearRegression = new LinearRegression()
+        .setFeaturesCol("features")
+        .setLabelCol("ArrDelay")
+        .setMaxIter(10)
+        .setElasticNetParam(0.8)
+
+    val lrModel = linearRegression.fit(prepared_df)
+
+    println(s"Coefficients: ${lrModel.coefficients}")
+    println(s"Intercept: ${lrModel.intercept}")
+    val trainingSummary = lrModel.summary
+
+    println(s"numIterations: ${trainingSummary.totalIterations}")
+    println(s"objectiveHistory: ${trainingSummary.objectiveHistory.toList}")
+    trainingSummary.residuals.show()
+    println(s"RMSE: ${trainingSummary.rootMeanSquaredError}")
+    println(s"r2: ${trainingSummary.r2}")
+
+
 
 
     println(s"Lines in the document: ${dataFrame.count()}")
