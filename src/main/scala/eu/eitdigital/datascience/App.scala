@@ -3,8 +3,8 @@ package eu.eitdigital.datascience
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
-import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
+import org.apache.spark.ml.feature.{MinMaxScaler, StringIndexer, VectorAssembler}
+import org.apache.spark.ml.regression.LinearRegression
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
@@ -55,12 +55,21 @@ object App {
     // We transform the categorical variables into doubles
     val preparedDf = new Pipeline().setStages(inds).fit(dataFrame).transform(dataFrame)
 
+    // We select the variables to use
     val assembler = new VectorAssembler()
-      .setInputCols(Array("DepDelay", "DayOfWeek", "index_Origin", "index_Dest", "index_FlightID"))
+      .setInputCols(Array("DepDelay", "DayOfWeek", "CRSElapsedTime", "TaxiOut", "index_Origin", "index_Dest", "index_FlightID"))
       .setOutputCol("features")
 
+    // To normalize the features, we use the MinMax algorithm setting the interval [-1,1]
+    val scaleModel = new MinMaxScaler()
+      .setInputCol("features")
+      .setOutputCol("scaledFeatures")
+      .setMax(1.0)
+      .setMin(-1.0)
+
+    // The proposed problem should be linear, so we will use a linear regression model
     val linearRegression = new LinearRegression()
-      .setFeaturesCol("features")
+      .setFeaturesCol("scaledFeatures")
       .setLabelCol("ArrDelay")
       .setRegParam(0.1)
       .setMaxIter(10)
@@ -71,9 +80,13 @@ object App {
     val training_set = split(0)
     val test_set = split(1)
 
-    val pipeline = new Pipeline().setStages(Array(assembler, linearRegression))
+    // We set the pipeline with the step to build the model
+    val pipeline = new Pipeline().setStages(Array(assembler, scaleModel, linearRegression))
 
+    // We train the model with the training set
     val lrModel = pipeline.fit(training_set)
+
+    // We test the model accuracy with the test set
     val predictions = lrModel.transform(test_set)
 
     val evaluator = new RegressionEvaluator()
@@ -81,7 +94,7 @@ object App {
       .setPredictionCol("prediction")
       .setMetricName("rmse")
     val rmse = evaluator.evaluate(predictions)
-    println(s"Root Mean Squared Error (RMSE) on test data = $rmse")
+    println(s"Root Mean Squared Error (RMSE) on test data = $rmse") // The RMSE for year 2008 is around 10.5
   }
 
 }
