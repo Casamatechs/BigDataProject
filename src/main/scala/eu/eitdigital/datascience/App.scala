@@ -2,6 +2,7 @@ package eu.eitdigital.datascience
 
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
 import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.SparkSession
@@ -61,7 +62,7 @@ object App {
     val linearRegression = new LinearRegression()
       .setFeaturesCol("features")
       .setLabelCol("ArrDelay")
-      .setRegParam(0.2)
+      .setRegParam(0.1)
       .setMaxIter(10)
       .setElasticNetParam(0.8)
 
@@ -73,7 +74,14 @@ object App {
     val pipeline = new Pipeline().setStages(Array(assembler, linearRegression))
 
     val lrModel = pipeline.fit(training_set)
-    lrModel.transform(test_set).show(20)
+    val predictions = lrModel.transform(test_set)
+
+    val evaluator = new RegressionEvaluator()
+      .setLabelCol("ArrDelay")
+      .setPredictionCol("prediction")
+      .setMetricName("rmse")
+    val rmse = evaluator.evaluate(predictions)
+    println(s"Root Mean Squared Error (RMSE) on test data = $rmse")
   }
 
 }
