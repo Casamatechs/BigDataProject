@@ -20,19 +20,23 @@ object App {
 
     import spark.implicits._
 
+    // Data loading and pre-processing
     val dataFrame = spark.read.format("csv")
       .option("sep", ",")
       .option("inferSchema", "true")
       .option("header", "true")
-      .load("/Users/csanchez/Documents/EIT 2019/Big Data/BigDataProject/src/main/resources/2008.csv")
+      .load(args(0))
+      // We drop the forbidden variables
       .drop("ArrTime", "ActualElapsedTime", "AirTime", "TaxiIn", "Diverted", "CarrierDelay",
         "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay")
+      // We cast the variables to their right types
       .withColumn("DepTime", $"DepTime".cast(DataTypes.IntegerType))
       .withColumn("CRSElapsedTime", $"CRSElapsedTime".cast(DataTypes.IntegerType))
       .withColumn("ArrDelay", $"ArrDelay".cast(DataTypes.IntegerType))
       .withColumn("DepDelay", $"DepDelay".cast(DataTypes.IntegerType))
       .withColumn("TaxiOut", $"TaxiOut".cast(DataTypes.IntegerType))
       .withColumn("FlightID", concat($"UniqueCarrier", lit(""), $"FlightNum"))
+      // We remove the rows missing the response variable
       .filter($"ArrDelay".isNotNull)
 
     val indexer = new StringIndexer()
