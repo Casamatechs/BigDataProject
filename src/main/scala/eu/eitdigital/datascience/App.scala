@@ -1,8 +1,9 @@
 package eu.eitdigital.datascience
 
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
-import org.apache.spark.ml.regression.LinearRegression
+import org.apache.spark.ml.regression.{LinearRegression, LinearRegressionModel}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
@@ -39,41 +40,40 @@ object App {
       // We remove the rows missing the response variable
       .filter($"ArrDelay".isNotNull)
 
-    val indexer = new StringIndexer()
-      .setInputCol("FlightID")
-      .setOutputCol("indexFlightID")
+    // We do a selection of columns to transform
+
+    val columnsToIndex = Array("Origin", "Dest", "FlightID")
+
+    val inds = columnsToIndex.map(
+      colName => new StringIndexer()
+        .setInputCol(colName)
+        .setOutputCol("index_".concat(colName))
         .fit(dataFrame)
-        .transform(dataFrame)
+    )
+
+    // We transform the categorical variables into doubles
+    val preparedDf = new Pipeline().setStages(inds).fit(dataFrame).transform(dataFrame)
 
     val assembler = new VectorAssembler()
-        .setInputCols(Array("DepDelay", "DayOfWeek", "indexFlightID"))
-        .setOutputCol("features")
-
-    val prepared_df = assembler.transform(indexer)
+      .setInputCols(Array("DepDelay", "DayOfWeek", "index_Origin", "index_Dest", "index_FlightID"))
+      .setOutputCol("features")
 
     val linearRegression = new LinearRegression()
-        .setFeaturesCol("features")
-        .setLabelCol("ArrDelay")
-        .setMaxIter(10)
-        .setElasticNetParam(0.8)
+      .setFeaturesCol("features")
+      .setLabelCol("ArrDelay")
+      .setRegParam(0.2)
+      .setMaxIter(10)
+      .setElasticNetParam(0.8)
 
-    val lrModel = linearRegression.fit(prepared_df)
+    // We prepare the data to train and test the ML model
+    val split = preparedDf.randomSplit(Array(0.8, 0.2))
+    val training_set = split(0)
+    val test_set = split(1)
 
-    println(s"Coefficients: ${lrModel.coefficients}")
-    println(s"Intercept: ${lrModel.intercept}")
-    val trainingSummary = lrModel.summary
+    val pipeline = new Pipeline().setStages(Array(assembler, linearRegression))
 
-    println(s"numIterations: ${trainingSummary.totalIterations}")
-    println(s"objectiveHistory: ${trainingSummary.objectiveHistory.toList}")
-    trainingSummary.residuals.show()
-    println(s"RMSE: ${trainingSummary.rootMeanSquaredError}")
-    println(s"r2: ${trainingSummary.r2}")
-
-
-
-
-    println(s"Lines in the document: ${dataFrame.count()}")
-
+    val lrModel = pipeline.fit(training_set)
+    lrModel.transform(test_set).show(20)
   }
 
 }
