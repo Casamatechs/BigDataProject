@@ -57,7 +57,7 @@ object App {
 
     // We select the variables to use
     val assembler = new VectorAssembler()
-      .setInputCols(Array("DepDelay", "DayOfWeek", "CRSElapsedTime", "TaxiOut", "index_Origin", "index_Dest", "index_FlightID"))
+      .setInputCols(Array("DepDelay", "DayOfWeek", "TaxiOut", "index_Origin", "index_Dest", "index_FlightID"))
       .setOutputCol("features")
 
     // To normalize the features, we use the MinMax algorithm setting the interval [-1,1]
